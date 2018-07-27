@@ -12,7 +12,7 @@ OPTIX_add_sample_executable( optixGlass
     prd.h
     triangle_mesh.cu
 
-	particalSphere.cu
+	partialSphere.cu
 
 	
 

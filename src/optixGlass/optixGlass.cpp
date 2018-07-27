@@ -31,20 +31,8 @@ const unsigned int WIDTH  = 768u;
 const unsigned int HEIGHT = 576u;
 const float3 DEFAULT_TRANSMITTANCE = make_float3( 0.1f, 0.63f, 0.3f );
 
-//------------------------------------------------------------------------------
-//
-// Globals
-//
-//------------------------------------------------------------------------------
 
 Context      context = 0;
-
-
-//------------------------------------------------------------------------------
-//
-//  Helper functions
-//
-//------------------------------------------------------------------------------
     
 static __inline__ float3 logf( float3 v )
 {
@@ -167,19 +155,32 @@ Material createDiffuseMaterial()
 }
 
 
-
-
-
-void createParticalSphere(float3 pos,float radius,float angle)
+optix::GeometryInstance createPartialSphere()
 {
+	optix::Geometry partialSphere = context->createGeometry();
+	const std::string partialSphere_ptx = ptxPath("partialSphere.cu");
+
+	partialSphere->setPrimitiveCount(1u);
+	partialSphere->setIntersectionProgram(context->createProgramFromPTXFile(partialSphere_ptx, "partialsphere_intersect"));
+	partialSphere->setBoundingBoxProgram( context->createProgramFromPTXFile(partialSphere_ptx, "partialsphere_bounds") );
+
+	Material material = createGlassMaterial();
+	optix::GeometryInstance instance = context->createGeometryInstance(partialSphere, &material, &material + 1);
+
+	partialSphere["radius"]->setFloat(1.0f);
+	partialSphere["partialAngle"]->setFloat(3.1415926f);
+
+	partialSphere["zMin"]->setFloat(-50.0f);
+	partialSphere["zMax"]->setFloat(50.0f);
+	partialSphere["phiMax"]->setFloat(2*3.1415926);
+
+	partialSphere["thetaMax"]->setFloat(1);
+	partialSphere["thetaMin"]->setFloat(0.5);
 
 
 
 
-
-
-
-
+	return instance;
 }
 
 
@@ -187,32 +188,16 @@ void createParticalCylinder()
 {
 
 
-
-
-
 }
-
 void createdisk()
 {
-
-
-
-
-
-
 }
-
-
-
 GeometryGroup CreateLens()
 {
-	GeometryGroup singleLens = context->createGeometryGroup();
-	singleLens->setAcceleration(context->createAcceleration("NoAccel"));
+	GeometryGroup singleLen = context->createGeometryGroup();
+	singleLen->setAcceleration(context->createAcceleration("NoAccel"));
 
-
-
-
-	return singleLens;
+	return singleLen;
 }
 
 
@@ -238,7 +223,6 @@ optix::Aabb createGeometry(
         optix::Group& top_group
         )
 {
-
     const std::string ptx_path = ptxPath( "triangle_mesh.cu" );
 
     top_group = context->createGroup();
@@ -246,39 +230,44 @@ optix::Aabb createGeometry(
 
     int num_triangles = 0;
     optix::Aabb aabb;
+	aabb.m_max = make_float3(100, 100, 100);
+	aabb.m_min = make_float3(-100, -100, -100);
+    //{
+    //    GeometryGroup geometry_group = context->createGeometryGroup();
+    //    geometry_group->setAcceleration( context->createAcceleration( "Sbvh" ) );
+    //    top_group->addChild( geometry_group );
+    //    for (size_t i = 0; i < filenames.size(); ++i) {
+    //        OptiXMesh mesh;
+    //        mesh.context = context;
+    //        
+    //        // override defaults
+    //        mesh.intersection = context->createProgramFromPTXFile( ptx_path, "mesh_intersect_refine" );
+    //        mesh.bounds = context->createProgramFromPTXFile( ptx_path, "mesh_bounds" );
+    //        mesh.material = glass_material;
+
+    //        loadMesh( filenames[i], mesh, xforms[i] ); 
+    //        geometry_group->addChild( mesh.geom_instance );
+
+    //        aabb.include( mesh.bbox_min, mesh.bbox_max );
+
+    //        std::cerr << filenames[i] << ": " << mesh.num_triangles << std::endl;
+    //        num_triangles += mesh.num_triangles;
+    //    }
+    //    std::cerr << "Total triangle count: " << num_triangles << std::endl;
+    //}
+
     {
-        GeometryGroup geometry_group = context->createGeometryGroup();
-        geometry_group->setAcceleration( context->createAcceleration( "Trbvh" ) );
-        top_group->addChild( geometry_group );
-        for (size_t i = 0; i < filenames.size(); ++i) {
-
-            OptiXMesh mesh;
-            mesh.context = context;
-            
-            // override defaults
-            mesh.intersection = context->createProgramFromPTXFile( ptx_path, "mesh_intersect_refine" );
-            mesh.bounds = context->createProgramFromPTXFile( ptx_path, "mesh_bounds" );
-            mesh.material = glass_material;
-
-            loadMesh( filenames[i], mesh, xforms[i] ); 
-            geometry_group->addChild( mesh.geom_instance );
-
-            aabb.include( mesh.bbox_min, mesh.bbox_max );
-
-            std::cerr << filenames[i] << ": " << mesh.num_triangles << std::endl;
-            num_triangles += mesh.num_triangles;
-        }
-        std::cerr << "Total triangle count: " << num_triangles << std::endl;
-    }
-
-    {
-        // Ground plane
+      
         GeometryGroup geometry_group = context->createGeometryGroup();
         geometry_group->setAcceleration( context->createAcceleration( "NoAccel" ) );
         top_group->addChild( geometry_group );
         const std::string floor_ptx = ptxPath( "parallelogram_iterative.cu" );
         GeometryInstance instance = sutil::createOptiXGroundPlane( context, floor_ptx, aabb, ground_material, 3.0f );
         geometry_group->addChild( instance );
+
+		GeometryInstance partialsphere = createPartialSphere();
+		geometry_group->addChild(partialsphere);
+
     }
 
     context[ "top_object" ]->set( top_group ); 

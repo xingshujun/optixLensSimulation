@@ -3,7 +3,8 @@
 #include <optixu/optixu_matrix_namespace.h>
 #include <optixu/optixu_aabb_namespace.h>
 #include "intersection_refinement.h"
-#define Pi 3.14159265358979f
+#define Pi      3.14159265358979f
+#define eps     1.0e-5f
 
 using namespace optix;
 
@@ -18,23 +19,20 @@ rtDeclareVariable(float,  thetaMin, , );
 
 
 //属性列表
-rtDeclareVariable(float3, texcoord, attribute texcoord, );
 rtDeclareVariable(float3, geometric_normal, attribute geometric_normal, );  
 rtDeclareVariable(float3, shading_normal, attribute shading_normal, );
 rtDeclareVariable(float3, back_hit_point, attribute back_hit_point, );
 rtDeclareVariable(float3, front_hit_point, attribute front_hit_point, );
 
-
-
 //只读列表
 rtDeclareVariable(optix::Ray, ray, rtCurrentRay, );
 
-static __device__ __inline__ float clampT(const float f, const float a, const float b)
+static __device__  float clampT(const float f, const float a, const float b)
 {
 	return fmaxf(a, fminf(f, b));
 }
-//二次曲面解析式
-static __device__ __inline__ bool Quadratic(float a, float b, float c, float &t0, float &t1)
+//二次曲面解析式的表达
+static __device__ bool Quadratic(float a, float b, float c, float &t0, float &t1)
 {
 	// Find quadratic discriminant
 	float discrim = b * b - 4 * a * c;
@@ -63,22 +61,22 @@ static __device__ __inline__ bool Quadratic(float a, float b, float c, float &t0
 	return true;
 }
 
-static __device__ __inline__ float UpperBound(float v)
+static __device__  float UpperBound(float v)
 {
-	float err = 1.0e-4f;
+	float err = eps;
 	return v + err;
 }
 
-static __device__ __inline__ float LowerBound(float v)
+static __device__  float LowerBound(float v)
 {
-	float err = 1.0e-4f;
+	float err = eps;
 	return v - err;
 }
 
 
-//参考链接：  https://github.com/mmp/pbrt-v3/blob/6663b4cd4cb242ef8b923d99a6cb0b27b2fb0f37/src/shapes/sphere.cpp
+//参考链接：https://github.com/mmp/pbrt-v3/blob/6663b4cd4cb242ef8b923d99a6cb0b27b2fb0f37/src/shapes/sphere.cpp
 
-RT_PROGRAM void particalsphere_intersect(int primIdx)
+RT_PROGRAM void partialsphere_intersect(int primIdx)
 {
 	float phi;   
 	float3 dir = ray.direction;
@@ -150,7 +148,6 @@ RT_PROGRAM void particalsphere_intersect(int primIdx)
 	float theta = acosf(clampT(pHit.z / radius, -1, 1));
 	float v = (theta - thetaMin) / (thetaMax - thetaMin);
 
-
 	if (rtPotentialIntersection(tShapeHit))
 	{
 		geometric_normal = shading_normal = pHit;
@@ -168,10 +165,15 @@ RT_PROGRAM void particalsphere_intersect(int primIdx)
 		rtReportIntersection(0);
 	}
 
+
+
 }
 
 
-RT_PROGRAM void mesh_bounds(int primIdx, float result[6])
+RT_PROGRAM void partialsphere_bounds(int primIdx, float result[6])
 {
-
+	optix::Aabb* aabb = (optix::Aabb*)result;
+	float anchor = 3.0f;
+	aabb->m_min = make_float3(anchor, anchor, anchor);
+	aabb->m_max = make_float3(anchor, anchor, anchor);
 }

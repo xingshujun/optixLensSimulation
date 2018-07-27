@@ -10,7 +10,7 @@ rtDeclareVariable(float3, front_hit_point, attribute front_hit_point, );
 rtDeclareVariable(float3, back_hit_point, attribute back_hit_point, );
 
 rtDeclareVariable(optix::Ray, ray, rtCurrentRay, );
-rtDeclareVariable(float, t_hit, rtIntersectionDistance, );
+rtDeclareVariable(float, t_hit, rtIntersectionDistance, );    //这个是只读属性
 
 rtDeclareVariable(float,        refraction_index, , );
 rtDeclareVariable(float3,       refraction_color, , );
